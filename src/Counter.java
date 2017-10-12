@@ -7,28 +7,7 @@
 // Using Tutorial code listed on LMS as starting point
 
 
-public abstract class Counter {
-	protected Hash hfs[];
-	protected int d, w, m;
-	protected int n;
-	protected double accruacy = 1 - 0.9;
-	protected double badEstimate = 1 - 0.9;
-	protected int[][] T;
-	
-	protected RangeTree freqRange;
-	protected int treeDepth;
-	
-	public Counter(int n){
-		this.n = n;
-		this.m = (int) Math.ceil((10000  * Math.log(accruacy)) / Math.log(1.0/Math.pow(2.0,  Math.log(2.0))));
-		this.d = (int) Math.ceil(Math.log(2) * m / 10000);
-		this.w = (int) (m/d);
-		hfs = new Hash[d];
-		for(int i=0;i<d;i++){
-			hfs[i] = new Hash(n,w);
-		}
-	}
-	
+public interface Counter {
 	/**
 	 * add : void
 	 * @param x {int} - Value being added
@@ -51,7 +30,7 @@ public abstract class Counter {
 	 */
 	public abstract int get(int low, int high);
 
-	protected static int zeros(int v){
+	public static int zeros(int v){
 		return Integer.numberOfTrailingZeros(v);
 	}
 	
@@ -60,7 +39,7 @@ public abstract class Counter {
 	 * @param v : {int} value being checked
 	 * @return {int} most significant 1-bit of the value
 	 */
-	protected static int leftOne(int v) {
+	public static int leftOne(int v) {
 		return Integer.numberOfLeadingZeros(v) ;
 	}
 
@@ -69,7 +48,7 @@ public abstract class Counter {
 	 * @param v : {int} value being checked
 	 * @return {int} number of consecutive 1s from the right hand side
 	 */
-	protected static int ones(int v) {
+	public static int ones(int v) {
 		return Integer.numberOfTrailingZeros(v ^ Integer.MAX_VALUE);
 	}
 
@@ -79,7 +58,7 @@ public abstract class Counter {
 	 * @param v : {int} value being checked
 	 * @return {int} chopped off value
 	 */
-	protected static int getUpToNthBit(int n, int v) {
+	public static int getUpToNthBit(int n, int v) {
 		return v & ((1 << n) - 1);
 		// return v & ((int)Math.pow(2, n) - 1); <- This made the loop go for extra 10 seconds in the third trial!
 	}
@@ -91,7 +70,7 @@ public abstract class Counter {
 	 * @param v : {int} value being checked
 	 * @return {int} chopped off value
 	 */
-	protected static int getFromNthBit(int n, int v) {
+	public static int getFromNthBit(int n, int v) {
 		return v >> n;
 	}
 }

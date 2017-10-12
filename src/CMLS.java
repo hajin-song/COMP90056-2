@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 // CMLS.java
@@ -10,8 +12,17 @@ import java.util.Random;
 // - https://github.com/seiflotfy/count-min-log
 
 
-public class CMLS extends Counter{
-	protected short[][] T;
+public class CMLS implements Counter{
+	public Hash hfs[];
+	public int d, w, m;
+	public int n;
+	public double accruacy = 1 - 0.9;
+	public double badEstimate = 1 - 0.9;
+	public short[][] T;
+	
+	public RangeTree freqRange;
+	public int treeDepth;
+	
 		
 	// Sadly, no easy way to get unsigned short max
 	// apart from around about way of using char in byte format
@@ -20,25 +31,31 @@ public class CMLS extends Counter{
 	private int bucketSize;
 	private int valueSize;
 	
+	
 	public CMLS(int n){
-		super(n);
-		this.w *= 2;
-		T = new short[d][w];
-
 		this.rand = new Random();
 		this.logBase = 1.00025; //magic number from paper
 		this.bucketSize = 12;
 		this.valueSize = Integer.BYTES * 8 - bucketSize;
+		int adjustedRange = Counter.getUpToNthBit(this.valueSize, n);
 		
-		int adjustedRange = getUpToNthBit(this.valueSize, n);
-		
-		this.treeDepth = (int)Math.ceil((Math.log(adjustedRange) / Math.log(2)));
-		this.freqRange = new RangeTree(adjustedRange, this.treeDepth, this.bucketSize);
-		
-		hfs = new Hash[d];
+		this.n = n;
+		// Making reference from Git repo above
+		// m and d varies based on the expected size of the stream
+		this.m = (int) Math.ceil((500000  * Math.log(accruacy)) / Math.log(1.0/Math.pow(2.0,  Math.log(2.0))));
+		this.d = (int) Math.ceil(Math.log(2) * m / 500000);
+		this.w = (int) (m/d) * 2;
+		this.hfs = new Hash[d];
 		for(int i=0;i<d;i++){
 			hfs[i] = new Hash(adjustedRange,w);
 		}
+		
+		this.T = new short[d][w];
+
+		this.treeDepth = (int)Math.ceil((Math.log(adjustedRange) / Math.log(2)));
+		this.freqRange = new RangeTree(adjustedRange, this.treeDepth, this.bucketSize);
+		
+
 	}
 	
 	@Override
@@ -65,11 +82,14 @@ public class CMLS extends Counter{
 
 		}
 		// Update the Frequency Lists
-		int bucketNumber = getFromNthBit(this.valueSize, x) % this.bucketSize;
-		int listingNumber = getUpToNthBit(this.valueSize, x);
+		int bucketNumber = Counter.getFromNthBit(this.valueSize, x) % this.bucketSize;
+		int listingNumber = Counter.getUpToNthBit(this.valueSize, x);
+		//System.out.printf("\t\t%d   %d  // %d,  %d\n", bucketNumber, listingNumber, x, currentFreq);
 		for(int j = 0 ; j < treeDepth ; j++) {
 			this.freqRange.tree[j].cell[(int) (listingNumber/(Math.pow(2, j)))][bucketNumber] += this.value(currentFreq);
+			//System.out.printf("\t\t\t\t%d   %d\n", j, this.freqRange.tree[j].cell[(int) (listingNumber/(Math.pow(2, j)))][bucketNumber]);
 		}
+		//System.out.printf("\t\t\t\t%d   %d\n", x, this.freqRange.tree[5].cell[(int) (listingNumber/(Math.pow(2, 5)))][0]);
 	}
 	
 	@Override
@@ -83,7 +103,31 @@ public class CMLS extends Counter{
 	
 	@Override
 	public int get(int low, int high) {
-		return this.getRange(low,  high);
+		// Split things by bucket first
+		List<int[]> buckets = new ArrayList<int[]>();
+		int[] tempList = new int[2];
+		int curBucket;
+		tempList[0] = low;
+		int prevBucket = Counter.getFromNthBit(this.valueSize, low) % this.bucketSize;
+		// non-includsive
+		for(int curVal = low + 1 ; curVal < high; curVal++) {
+			curBucket = Counter.getFromNthBit(this.valueSize, curVal) % this.bucketSize;
+			if(prevBucket != curBucket) {
+				tempList[1] = curVal - 1;
+				buckets.add(tempList);
+				tempList = new int[2];
+				tempList[0] = curVal;
+				prevBucket = curBucket;
+			}else if(curVal==high-1) {
+				tempList[1] = curVal;
+				buckets.add(tempList);
+			}
+		}
+		int freq = 0;
+		for(int[] bucket : buckets) {
+			freq += this.getRange(bucket[0],  bucket[1]);
+		}
+		return freq;
 	}
 	
 	/**
@@ -95,56 +139,69 @@ public class CMLS extends Counter{
 	 */
 	private int getRange(int low, int high) {
 
-		if(low == high) {
+		if(low >= high) {
 			//System.out.printf("\t%d ~ %d : %d\n", low, high,
 			//		this.freqRange.tree[0].cell[low]);
-			int bucketLow = getFromNthBit(this.valueSize, low) % this.bucketSize;
-			int listingLow = getUpToNthBit(this.valueSize, low);
+			int bucketLow = Counter.getFromNthBit(this.valueSize, high) % this.bucketSize;
+			int listingLow = Counter.getUpToNthBit(this.valueSize, high);
 			return this.freqRange.tree[0].cell[listingLow][bucketLow];
 		}
-		
+		if(low == 0) {
+			int newLow = (int) Math.ceil(Math.log(1) / Math.log(2));
+			int bucketLow = Counter.getFromNthBit(this.valueSize, low) % this.bucketSize;
+			int listingLow = Counter.getUpToNthBit(this.valueSize, low);
+			newLow = (int) Math.pow(2, newLow);
+			int left = this.freqRange.tree[0].cell[listingLow][bucketLow];
+			int right = getRange(newLow, high);
+			//System.out.printf("\t TMATA ZERO %d ~ %d / %d ~ %d: %d, %d\n", 
+			//		low, low,
+			//		low, high,
+			//		left, right);
+			return left + right;
+		}
 		// Convert Low to next factor of 2 (2^n)
 		// Possible Optimisation - take the previous factor of 2 (2^n)
 		// and use the closest of the two to collect the missing values
 		if((low != 0) && ((low & (low - 1)) != 0)) {
 			int newLow = (int) Math.ceil(Math.log(low) / Math.log(2));
 			newLow = (int) Math.pow(2, newLow);
+			if(newLow > high) {
+				newLow = high;
+			}
 			int left = 0;
 			// Collecitng missing values
 			for( ; low < newLow ; low++) {
-				int bucketLow = getFromNthBit(this.valueSize, low) % this.bucketSize;
-				int listingLow = getUpToNthBit(this.valueSize, low);
+				int bucketLow = Counter.getFromNthBit(this.valueSize, low) % this.bucketSize;
+				int listingLow = Counter.getUpToNthBit(this.valueSize, low);
 				left += this.freqRange.tree[0].cell[listingLow][bucketLow];
 			}
 			int right = getRange(newLow, high);
-			System.out.printf("\t%d ~ %d / %d ~ %d: %d, %d\n", 
-					low, low,
-					low + 1, high,
-					left, right);
+			//System.out.printf("\t TMATA %d ~ %d / %d ~ %d: %d, %d\n", 
+			//		low, newLow-1,
+			//		low, high,
+			//		left, right);
 			return left + right;
 		}
 
 		
-		int bucketLow = getFromNthBit(this.valueSize, low) % this.bucketSize;
-		int listingLow = getUpToNthBit(this.valueSize, low);
-		int buckethigh = getFromNthBit(this.valueSize, high) % this.bucketSize;
-		int listinghigh = getUpToNthBit(this.valueSize, high);
+		int bucket = Counter.getFromNthBit(this.valueSize, low) % this.bucketSize;
+		int listingLow = Counter.getUpToNthBit(this.valueSize, low);
+		int listinghigh = Counter.getUpToNthBit(this.valueSize, high);
 		
 		
 		// What is the largest factor 2 I can fit into the difference?
-		int step = (int) (Math.log(high-low) / Math.log(2));
+		int step = (int) (Math.log(listinghigh-listingLow) / Math.log(2));
 		// Where am I to start from?
-		int start = (int) (low / Math.pow(2, step));
+		int start = (int) (listingLow / Math.pow(2, step));
 		
 		// Debug Purpose variables and print statemetns
-
-		int left = 0;
+		int left = this.freqRange.tree[step].cell[start][bucket];
 		int right = getRange((int)(low+Math.pow(2, step)), high);
-		System.out.printf("\t STEP: %d, START: %d --- %d ~ %d / %d ~ %d: %d, %d\n", 
-			step, start,
-			low, (int)(low+Math.pow(2, step)),
-			(int)(low+Math.pow(2, step)) + 1, high,
-			left, right);
+		//System.out.printf("\t STEP: %d, START: %d --- %d ~ %d / %d ~ %d: %d, %d\n", 
+		//	step, start,
+		//	low, (int)(low+Math.pow(2, step)) - 1,
+		//	(int)(low+Math.pow(2, step)), high,
+		//	left, right);
 
 		return left + right;
 

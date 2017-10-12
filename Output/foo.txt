@@ -1,0 +1,5 @@
+Time Elapsed: 86132
+Base: 0.0000 
+CMLS: 0.2244 
+foofofo     201 ~    300 
+foofofo    9994 ~  15200 = 13575346
