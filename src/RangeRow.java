@@ -1,6 +1,10 @@
-public class RangeRow{
-	public int[] cell;
-	public RangeRow(int cellCount){
-		this.cell = new int[cellCount+1];
+
+public class RangeRow {
+	private int range;
+	public int[][] cell;
+	
+	public RangeRow(int range, int bucketSize) {
+		this.range = range;
+		this.cell = new int[range][bucketSize];
 	}
 }

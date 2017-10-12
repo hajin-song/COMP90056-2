@@ -1,7 +1,7 @@
 public class TestFrequencies{
 	public static void main(String args[]){
 		CMS c = new CMS(Integer.MAX_VALUE);
-		CMLS cl = new CMLS(10000);
+		CMLS cl = new CMLS((int)(Math.pow(2, 30) - 1));
 		int maxx = 10000;
 		for(int i=0;i<maxx;i++){
 			cl.add(i,i);

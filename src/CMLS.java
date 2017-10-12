@@ -17,18 +17,28 @@ public class CMLS extends Counter{
 	// apart from around about way of using char in byte format
 	private double logBase;
 	private Random rand;
+	private int bucketSize;
+	private int valueSize;
+	
 	public CMLS(int n){
 		super(n);
 		this.w *= 2;
 		T = new short[d][w];
-		hfs = new Hash[d];
-		for(int i=0;i<d;i++){
-			hfs[i] = new Hash(n,w);
-		}
+
 		this.rand = new Random();
 		this.logBase = 1.00025; //magic number from paper
-		this.treeDepth = (int)Math.ceil((Math.log(n) / Math.log(2)));
-		this.freqRange = new RangeTree(n, treeDepth);
+		this.bucketSize = 12;
+		this.valueSize = Integer.BYTES * 8 - bucketSize;
+		
+		int adjustedRange = getUpToNthBit(this.valueSize, n);
+		
+		this.treeDepth = (int)Math.ceil((Math.log(adjustedRange) / Math.log(2)));
+		this.freqRange = new RangeTree(adjustedRange, this.treeDepth, this.bucketSize);
+		
+		hfs = new Hash[d];
+		for(int i=0;i<d;i++){
+			hfs[i] = new Hash(adjustedRange,w);
+		}
 	}
 	
 	@Override
@@ -55,8 +65,10 @@ public class CMLS extends Counter{
 
 		}
 		// Update the Frequency Lists
+		int bucketNumber = getFromNthBit(this.valueSize, x) % this.bucketSize;
+		int listingNumber = getUpToNthBit(this.valueSize, x);
 		for(int j = 0 ; j < treeDepth ; j++) {
-			this.freqRange.tree[j].cell[(int) (x/(Math.pow(2, j)))] += this.value(currentFreq);
+			this.freqRange.tree[j].cell[(int) (listingNumber/(Math.pow(2, j)))][bucketNumber] += this.value(currentFreq);
 		}
 	}
 	
@@ -74,7 +86,6 @@ public class CMLS extends Counter{
 		return this.getRange(low,  high);
 	}
 	
-	
 	/**
 	 * getRange : int
 	 * Recursively process the range and fetch the low and high summation
@@ -83,11 +94,13 @@ public class CMLS extends Counter{
 	 * @return Sum of frequencies of the values in range
 	 */
 	private int getRange(int low, int high) {
-		// Single Range
+
 		if(low == high) {
 			//System.out.printf("\t%d ~ %d : %d\n", low, high,
 			//		this.freqRange.tree[0].cell[low]);
-			return this.freqRange.tree[0].cell[low];
+			int bucketLow = getFromNthBit(this.valueSize, low) % this.bucketSize;
+			int listingLow = getUpToNthBit(this.valueSize, low);
+			return this.freqRange.tree[0].cell[listingLow][bucketLow];
 		}
 		
 		// Convert Low to next factor of 2 (2^n)
@@ -99,7 +112,9 @@ public class CMLS extends Counter{
 			int left = 0;
 			// Collecitng missing values
 			for( ; low < newLow ; low++) {
-				left += this.freqRange.tree[0].cell[low];
+				int bucketLow = getFromNthBit(this.valueSize, low) % this.bucketSize;
+				int listingLow = getUpToNthBit(this.valueSize, low);
+				left += this.freqRange.tree[0].cell[listingLow][bucketLow];
 			}
 			int right = getRange(newLow, high);
 			System.out.printf("\t%d ~ %d / %d ~ %d: %d, %d\n", 
@@ -108,6 +123,13 @@ public class CMLS extends Counter{
 					left, right);
 			return left + right;
 		}
+
+		
+		int bucketLow = getFromNthBit(this.valueSize, low) % this.bucketSize;
+		int listingLow = getUpToNthBit(this.valueSize, low);
+		int buckethigh = getFromNthBit(this.valueSize, high) % this.bucketSize;
+		int listinghigh = getUpToNthBit(this.valueSize, high);
+		
 		
 		// What is the largest factor 2 I can fit into the difference?
 		int step = (int) (Math.log(high-low) / Math.log(2));
@@ -115,7 +137,8 @@ public class CMLS extends Counter{
 		int start = (int) (low / Math.pow(2, step));
 		
 		// Debug Purpose variables and print statemetns
-		int left = this.freqRange.tree[step].cell[start];
+
+		int left = 0;
 		int right = getRange((int)(low+Math.pow(2, step)), high);
 		System.out.printf("\t STEP: %d, START: %d --- %d ~ %d / %d ~ %d: %d, %d\n", 
 			step, start,
@@ -124,6 +147,7 @@ public class CMLS extends Counter{
 			left, right);
 
 		return left + right;
+
 	}
 	
 	/**
@@ -145,7 +169,6 @@ public class CMLS extends Counter{
 	private double pointValue(int currentFreq) {
 		return ((currentFreq==0) ? 0.00 : Math.pow(this.logBase, (float)currentFreq-1));
 	}
-	
 	
 	/**
 	 * value : float
