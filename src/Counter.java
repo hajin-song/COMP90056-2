@@ -50,4 +50,48 @@ public abstract class Counter {
 	 * @return Sum of frequencies of the values in range
 	 */
 	public abstract int get(int low, int high);
+
+	protected static int zeros(int v){
+		return Integer.numberOfTrailingZeros(v);
+	}
+	
+	/**
+	 * leftOne : Get the most significant 1-bit of given value
+	 * @param v : {int} value being checked
+	 * @return {int} most significant 1-bit of the value
+	 */
+	protected static int leftOne(int v) {
+		return Integer.numberOfLeadingZeros(v) ;
+	}
+
+	/**
+	 * ones : Get number of trailing ones of given value
+	 * @param v : {int} value being checked
+	 * @return {int} number of consecutive 1s from the right hand side
+	 */
+	protected static int ones(int v) {
+		return Integer.numberOfTrailingZeros(v ^ Integer.MAX_VALUE);
+	}
+
+	/**
+	 * getUpToNthBit : From current value, get upto N value only
+	 * @param n : {int} bit limit
+	 * @param v : {int} value being checked
+	 * @return {int} chopped off value
+	 */
+	protected static int getUpToNthBit(int n, int v) {
+		return v & ((1 << n) - 1);
+		// return v & ((int)Math.pow(2, n) - 1); <- This made the loop go for extra 10 seconds in the third trial!
+	}
+	
+	
+	/**
+	 * getFromNthBit : From current value, get from N value only
+	 * @param n : {int} bit start position
+	 * @param v : {int} value being checked
+	 * @return {int} chopped off value
+	 */
+	protected static int getFromNthBit(int n, int v) {
+		return v >> n;
+	}
 }

@@ -89,10 +89,19 @@ public class CMLS extends Counter{
 			//		this.freqRange.tree[0].cell[low]);
 			return this.freqRange.tree[0].cell[low];
 		}
-		// Odd Low
-		if(low%2 != 0) {
-			int left = this.freqRange.tree[0].cell[low];
-			int right = getRange(low+1, high);
+		
+		// Convert Low to next factor of 2 (2^n)
+		// Possible Optimisation - take the previous factor of 2 (2^n)
+		// and use the closest of the two to collect the missing values
+		if((low != 0) && ((low & (low - 1)) != 0)) {
+			int newLow = (int) Math.ceil(Math.log(low) / Math.log(2));
+			newLow = (int) Math.pow(2, newLow);
+			int left = 0;
+			// Collecitng missing values
+			for( ; low < newLow ; low++) {
+				left += this.freqRange.tree[0].cell[low];
+			}
+			int right = getRange(newLow, high);
 			System.out.printf("\t%d ~ %d / %d ~ %d: %d, %d\n", 
 					low, low,
 					low + 1, high,
@@ -103,14 +112,15 @@ public class CMLS extends Counter{
 		// What is the largest factor 2 I can fit into the difference?
 		int step = (int) (Math.log(high-low) / Math.log(2));
 		// Where am I to start from?
-		int start = low / step;
+		int start = (int) (low / Math.pow(2, step));
 		
 		// Debug Purpose variables and print statemetns
-		int left = this.freqRange.tree[step-1].cell[start];
-		int right = getRange((int)(low+Math.pow(2, step)+1), high);
-		System.out.printf("\t%d ~ %d / %d ~ %d: %d, %d\n", low,
-			(int)(low+Math.pow(2, step)) - 1,
-			(int)(low+Math.pow(2, step)), high,
+		int left = this.freqRange.tree[step].cell[start];
+		int right = getRange((int)(low+Math.pow(2, step)), high);
+		System.out.printf("\t STEP: %d, START: %d --- %d ~ %d / %d ~ %d: %d, %d\n", 
+			step, start,
+			low, (int)(low+Math.pow(2, step)),
+			(int)(low+Math.pow(2, step)) + 1, high,
 			left, right);
 
 		return left + right;

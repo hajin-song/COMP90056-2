@@ -7,7 +7,7 @@
 public class Ranges{
 	int levels; // not really used
 	private int powers2[];
-	private CMS[] cs;
+	private CMLS[] cs;
 	private int TT=32;
 	
 	public Ranges(int n){
@@ -16,9 +16,9 @@ public class Ranges{
 		for(int i= 1;i<TT;i++){
 			powers2[i] = powers2[i-1]*2;
 		}
-		cs = new CMS[TT];
+		cs = new CMLS[TT];
 		for(int i=0;i<TT;i++){
-			cs[i] = new CMS(n);
+			cs[i] = new CMLS(n);
 		}
 		
 	}

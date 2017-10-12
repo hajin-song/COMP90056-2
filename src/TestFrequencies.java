@@ -12,6 +12,6 @@ public class TestFrequencies{
 		}
 		
 		System.out.format("foofofo  %6d ~ %6d %n", cl.get(200), cl.get(300));
-		System.out.format("foofofo  %6d ~ %6d = %6d%n", 41, 160, cl.get(41, 160));
+		System.out.format("foofofo  %6d ~ %6d = %6d%n", 0, 160, cl.get(0, 160));
 	}
 }
